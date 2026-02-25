@@ -1,0 +1,2 @@
+Xnest :2 -geometry 1280x800 &
+DISPLAY=:2 ./wm 
