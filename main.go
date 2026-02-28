@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"os/exec"
+	"os"
 	"fmt"
 
 	"github.com/BurntSushi/xgb"
@@ -61,11 +62,12 @@ func main() {
 			unmanageWindow(conn, e.Window)
 		case xproto.UnmapNotifyEvent:
 			unmanageWindow(conn, e.Window)
-		case xproto.EnterNotifyEvent:
+		case xproto.EnterNotifyEvent: // change focused window event
 			focused = e.Event
 			setInputFocus(conn, focused)
 			// update bar
 			title := getWindowTitle(conn, focused)
+			log.Println(title)
 			drawBarText(conn, fmt.Sprintf("[%s]", title))
 		case xproto.ExposeEvent:
 			if e.Window == barWindow {
@@ -157,7 +159,7 @@ func killActiveWindow(conn *xgb.Conn, win xproto.Window) {
 
 	delete(clients, win)
 	focused = 0
-	tile(conn)
+	tileHorizontal(conn)
 }
 
 func setupKeys(conn *xgb.Conn) {
@@ -170,6 +172,13 @@ func setupKeys(conn *xgb.Conn) {
 			Sym: keysym.XK_Return,
 			Fn: func(conn *xgb.Conn) {
 				spawn("st")
+			},
+		},
+		{
+			Mod: mod|xproto.ModMaskShift,
+			Sym: keysym.XK_q,
+			Fn: func(conn *xgb.Conn) {
+				os.Exit(0)
 			},
 		},
 		{
@@ -309,18 +318,18 @@ func manageWindow(conn *xgb.Conn, win xproto.Window) {
 	setInputFocus(conn, focused)
 
 	// tile all windows
-	tile(conn)
+	tileHorizontal(conn)
 }
 
 func unmanageWindow(conn *xgb.Conn, win xproto.Window) {
 	if _, ok := clients[win]; ok {
 		log.Println("unmanaging window:", win)
 		delete(clients, win)
-		tile(conn)
+		tileHorizontal(conn)
 	}
 }
 
-func tile(conn *xgb.Conn) {
+func tileVert(conn *xgb.Conn) {
     log.Println("tile")
     screen := xproto.Setup(conn).DefaultScreen(conn)
     screenWidth := int(screen.WidthInPixels)
@@ -354,6 +363,37 @@ func tile(conn *xgb.Conn) {
     }
 }
 
+func tileHorizontal(conn *xgb.Conn) {
+	screen := xproto.Setup(conn).DefaultScreen(conn)
+    screenWidth := int(screen.WidthInPixels)
+	screenHeight := int(screen.HeightInPixels)
+
+    n := len(clients)
+    if n == 0 {
+        return
+    }
+
+    widthPerWin := screenWidth / n
+	i := 0
+	for _, c := range clients {
+		xOffset := int(i * widthPerWin)
+
+        xproto.ConfigureWindow(conn, c.Win,
+            xproto.ConfigWindowX|
+                xproto.ConfigWindowY|
+                xproto.ConfigWindowWidth|
+                xproto.ConfigWindowHeight,
+            []uint32{
+                uint32(xOffset), // x
+                uint32(int(barHeight)), // y
+                uint32(widthPerWin),
+                uint32(screenHeight - int(barHeight)),
+            })
+
+        i++
+	}
+}
+
 func createBar(conn *xgb.Conn) {
 	screen := xproto.Setup(conn).DefaultScreen(conn)
 	root := screen.Root
@@ -384,7 +424,7 @@ func createBar(conn *xgb.Conn) {
 
 	// create bar gc
 	barGC, _ = xproto.NewGcontextId(conn)
-	xproto.CreateGC(conn, barGC, xproto.Drawable(barWindow), xproto.GcForeground|xproto.GcBackground, []uint32{0x000000, 0xFFFFFF})
+	xproto.CreateGC(conn, barGC, xproto.Drawable(barWindow), xproto.GcForeground|xproto.GcBackground, []uint32{0x000000, 0xFF0000})
 }
 
 func drawBarText(conn *xgb.Conn, text string) {
@@ -394,6 +434,7 @@ func drawBarText(conn *xgb.Conn, text string) {
 
 	screen := xproto.Setup(conn).DefaultScreen(conn)
 	xproto.ClearArea(conn, false, barWindow, 0, 0, screen.WidthInPixels, barHeight)
+	screenWidth := int(screen.WidthInPixels)
 
 	// ascii only because FUCK POLYTEXT8
 	ascii := make([]byte, 0, len(text))
@@ -411,7 +452,7 @@ func drawBarText(conn *xgb.Conn, text string) {
     textItem[1] = 0 // offset
     copy(textItem[2:], ascii)
 
-    err := xproto.PolyText8Checked(conn, xproto.Drawable(barWindow), barGC, 10, int16(barHeight-5), textItem).Check()
+    err := xproto.PolyText8Checked(conn, xproto.Drawable(barWindow), barGC, int16(screenWidth / 2 - len(ascii)*2), int16(barHeight-5), textItem).Check()
     if err != nil {
         log.Println("polytext failed again :D err:", err)
     }
@@ -430,7 +471,7 @@ func getWindowTitle(conn *xgb.Conn, win xproto.Window) string {
 	}
 
 	if prop == nil || len(prop.Value) == 0 {
-		return "Unnamed"
+		return "Unknown"
 	}
 
 	return string(prop.Value)
