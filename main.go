@@ -45,7 +45,7 @@ var barHeight uint16 = 20 // bar height in pixels
 var layout string = "tileHorizontal"
 
 // tags
-var GlobalTags BitMask = 1 
+var GlobalTags BitMask = 1
 var ActiveClients []*Client
 
 
@@ -246,9 +246,63 @@ func setupKeys(conn *xgb.Conn) {
 				switchTags(conn, tags)
 			},
 		},
-
+		{
+			Mod: mod,
+			Sym: keysym.XK_3,
+			Fn: func(conn *xgb.Conn) {
+				var tags BitMask = 4
+				switchTags(conn, tags)
+			},
+		},
+		{
+			Mod: mod,
+			Sym: keysym.XK_4,
+			Fn: func(conn *xgb.Conn) {
+				var tags BitMask = 8
+				switchTags(conn, tags)
+			},
+		},
+		{
+			Mod: mod,
+			Sym: keysym.XK_5,
+			Fn: func(conn *xgb.Conn) {
+				var tags BitMask = 16
+				switchTags(conn, tags)
+			},
+		},
+		{
+			Mod: mod,
+			Sym: keysym.XK_6,
+			Fn: func(conn *xgb.Conn) {
+				var tags BitMask = 32
+				switchTags(conn, tags)
+			},
+		},
+		{
+			Mod: mod,
+			Sym: keysym.XK_7,
+			Fn: func(conn *xgb.Conn) {
+				var tags BitMask = 64
+				switchTags(conn, tags)
+			},
+		},
+		{
+			Mod: mod,
+			Sym: keysym.XK_8,
+			Fn: func(conn *xgb.Conn) {
+				var tags BitMask = 128
+				switchTags(conn, tags)
+			},
+		},
+		{
+			Mod: mod,
+			Sym: keysym.XK_9,
+			Fn: func(conn *xgb.Conn) {
+				var tags BitMask = 256
+				switchTags(conn, tags)
+			},
+		},
 	}
-
 	grabKeys(conn)
 }
 
