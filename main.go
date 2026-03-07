@@ -42,11 +42,13 @@ var barGC xproto.Gcontext
 var barHeight uint16 = 20 // bar height in pixels
 
 // layout
-var layout string = "tileHorizontal"
+var layout string = "tileWithMaster"
+var gapSize = 10 // 0 = no border
 
 // tags
 var GlobalTags BitMask = 1
 var ActiveClients []*Client
+
 
 
 func main() {
@@ -222,12 +224,19 @@ func setupKeys(conn *xgb.Conn) {
 			},
 		},
 		{
-			Mod: mod|xproto.ModMaskShift,
-			Sym: keysym.XK_l,
+			Mod: mod,
+			Sym: keysym.XK_m,
 			Fn: func(conn *xgb.Conn) {
-				for _, client := range clients {
-					log.Println(client.Tags)
-				}
+				layout = "tileWithMaster"
+				updateWindows(conn)	
+			},
+		},
+		{
+			Mod: mod,
+			Sym: keysym.XK_0,
+			Fn: func(conn *xgb.Conn) {
+				var tags BitMask = 2^32-1 
+				switchTags(conn, tags)
 			},
 		},
 		{
@@ -420,7 +429,7 @@ func manageWindow(conn *xgb.Conn, win xproto.Window) {
 		})
 
 	// map (show) window
-	if ((client.Tags & GlobalTags) == 1) {
+	if ((client.Tags & GlobalTags) >= 1) {
 		xproto.MapWindow(conn, win)
 		focused = win
 		setInputFocus(conn, focused)
@@ -470,17 +479,20 @@ func tileVertical(conn *xgb.Conn) {
     i := 0
     for _, c := range ActiveClients {
         yOffset := int(barHeight) + (i * heightPerWin)
-
+				height := heightPerWin - gapSize
+				if (i == len(ActiveClients) - 1) {
+					height = heightPerWin - gapSize * 2
+				}
         xproto.ConfigureWindow(conn, c.Win,
             xproto.ConfigWindowX|
                 xproto.ConfigWindowY|
                 xproto.ConfigWindowWidth|
                 xproto.ConfigWindowHeight,
             []uint32{
-                0, // x
-                uint32(yOffset), // y
-                uint32(screenWidth),
-                uint32(heightPerWin),
+                0 + uint32(gapSize), // x
+                uint32(yOffset + gapSize), // y
+                uint32(screenWidth - gapSize * 2),
+                uint32(height),
             })
 
         i++
@@ -496,25 +508,101 @@ func tileHorizontal(conn *xgb.Conn) {
   if n == 0 {
       return
   }
-	
   widthPerWin := screenWidth / n
 	i := 0
 	for _, c := range ActiveClients {
 		xOffset := int(i * widthPerWin)
+		width := widthPerWin - gapSize
+		log.Println(i, len(ActiveClients))
+		if (i == len(ActiveClients) - 1 ) {
+			width = widthPerWin - gapSize * 2
+		}
+			xproto.ConfigureWindow(conn, c.Win,
+      	xproto.ConfigWindowX|
+        	xproto.ConfigWindowY|
+          xproto.ConfigWindowWidth|
+          xproto.ConfigWindowHeight,
+          []uint32{
+          	uint32(xOffset + gapSize), // x
+           	uint32(int(barHeight) + gapSize), // y
+            uint32(width),
+            uint32(screenHeight - int(barHeight) - gapSize * 2),
+          })
+    i++
+	}
+}
 
-        xproto.ConfigureWindow(conn, c.Win,
+func tileWithMaster(conn *xgb.Conn) {
+	screen := xproto.Setup(conn).DefaultScreen(conn)
+	screenWidth := int(screen.WidthInPixels)
+	screenHeight := int(screen.HeightInPixels)	
+	usableHeight := int(screen.HeightInPixels) - int(barHeight)
+
+
+	var fullscreenMaster int = 0
+
+	n := len(ActiveClients)
+	if n == 0 {
+		return 
+	} else if n == 1 {
+		fullscreenMaster = 1
+	}
+	
+	widthPerWin := screenWidth / 2
+	masterClient := ActiveClients[0]
+	i := 0
+	for _, c := range ActiveClients {
+		if (c == masterClient) {
+			if (fullscreenMaster == 1) {
+				xproto.ConfigureWindow(conn, c.Win,
+					xproto.ConfigWindowX|
+					xproto.ConfigWindowY|
+					xproto.ConfigWindowWidth|
+					xproto.ConfigWindowHeight,
+					[]uint32{
+						uint32(0 + gapSize), // x
+						uint32(int(barHeight) + gapSize), // y
+						uint32(screenWidth - gapSize), // width
+						uint32(screenHeight - int(barHeight) - gapSize),
+				})} else {
+				xproto.ConfigureWindow(conn, c.Win,
+					xproto.ConfigWindowX|
+					xproto.ConfigWindowY|
+					xproto.ConfigWindowWidth|
+					xproto.ConfigWindowHeight,
+				[]uint32{
+					uint32(0 + gapSize), // x
+					uint32(int(barHeight) + gapSize), // y
+					uint32(screenWidth/2 - int(gapSize)), // width
+					uint32(screenHeight - int(barHeight) - gapSize * 2),
+				})
+			} 
+		} else {
+			heightPerWin := usableHeight / (n - 1)
+			yOffset := int(barHeight) + (i * heightPerWin) + gapSize
+			xOffset := uint32(widthPerWin + gapSize)
+			height := heightPerWin - gapSize * 2
+			log.Println(len(ActiveClients), i)
+			if n > 2 {
+				height = heightPerWin - gapSize
+			} 
+			if (i >= len(ActiveClients) - 2) {
+				height = heightPerWin - gapSize * 2
+			} 
+			xproto.ConfigureWindow(conn, c.Win,
             xproto.ConfigWindowX|
                 xproto.ConfigWindowY|
                 xproto.ConfigWindowWidth|
                 xproto.ConfigWindowHeight,
             []uint32{
-                uint32(xOffset), // x
-                uint32(int(barHeight)), // y
-                uint32(widthPerWin),
-                uint32(screenHeight - int(barHeight)),
+                xOffset, // x
+                uint32(yOffset), // y
+                uint32(widthPerWin - gapSize * 2),
+                uint32(height),
             })
-
         i++
+
+		}
 	}
 }
 
@@ -619,6 +707,8 @@ func updateWindows(conn *xgb.Conn) {
 			tileHorizontal(conn)
 		case "tileVertical":
 			tileVertical(conn)
+		case "tileWithMaster":
+			tileWithMaster(conn)
 		default:
 			log.Fatal("Unknown layout ", layout)
 	}
