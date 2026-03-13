@@ -1,10 +1,10 @@
 package main
 
 import (
-	"log"
-	"os/exec"
-	"os"
 	"fmt"
+	"log"
+	"os"
+	"os/exec"
 
 	"github.com/BurntSushi/xgb"
 	"github.com/BurntSushi/xgb/xproto"
@@ -29,7 +29,7 @@ type Client struct {
 	Width    uint16
 	Height   uint16
 	Floating bool
-	Tags  	 BitMask
+	Tags     BitMask
 }
 
 var keys []Key
@@ -39,7 +39,7 @@ var focused xproto.Window
 // bar
 var barWindow xproto.Window
 var barGC xproto.Gcontext
-var barHeight uint16 = 20 // bar height in pixels
+var barHeight uint16 = 200 // bar height in pixels
 
 // layout
 var layout string = "tileWithMaster"
@@ -48,8 +48,6 @@ var gapSize = 10 // 0 = no border
 // tags
 var GlobalTags BitMask = 1
 var ActiveClients []*Client
-
-
 
 func main() {
 	conn, err := xgb.NewConn()
@@ -88,7 +86,7 @@ func main() {
 					title = "wm"
 				}
 				drawBarText(conn, fmt.Sprintf("[%s]", title))
-				
+
 			}
 		default:
 			log.Println("event: ", e)
@@ -175,7 +173,7 @@ func killActiveWindow(conn *xgb.Conn, win xproto.Window) {
 }
 
 func setupKeys(conn *xgb.Conn) {
-	mod := uint16(xproto.ModMask1) 
+	mod := uint16(xproto.ModMask1)
 
 	// keybinds
 	keys = []Key{
@@ -187,7 +185,7 @@ func setupKeys(conn *xgb.Conn) {
 			},
 		},
 		{
-			Mod: mod|xproto.ModMaskShift,
+			Mod: mod | xproto.ModMaskShift,
 			Sym: keysym.XK_q,
 			Fn: func(conn *xgb.Conn) {
 				os.Exit(0)
@@ -216,11 +214,11 @@ func setupKeys(conn *xgb.Conn) {
 			},
 		},
 		{
-			Mod: mod|xproto.ModMaskShift,
+			Mod: mod | xproto.ModMaskShift,
 			Sym: keysym.XK_l,
 			Fn: func(conn *xgb.Conn) {
 				layout = "tileVertical"
-				updateWindows(conn)	
+				updateWindows(conn)
 			},
 		},
 		{
@@ -228,14 +226,14 @@ func setupKeys(conn *xgb.Conn) {
 			Sym: keysym.XK_m,
 			Fn: func(conn *xgb.Conn) {
 				layout = "tileWithMaster"
-				updateWindows(conn)	
+				updateWindows(conn)
 			},
 		},
 		{
 			Mod: mod,
 			Sym: keysym.XK_0,
 			Fn: func(conn *xgb.Conn) {
-				var tags BitMask = 2^32-1 
+				var tags BitMask = 2 ^ 32 - 1
 				switchTags(conn, tags)
 			},
 		},
@@ -244,8 +242,8 @@ func setupKeys(conn *xgb.Conn) {
 			Sym: keysym.XK_1,
 			Fn: func(conn *xgb.Conn) {
 				var tags BitMask = 1
-				switchTags(conn, tags)	
-			}, 
+				switchTags(conn, tags)
+			},
 		},
 		{
 			Mod: mod,
@@ -311,37 +309,45 @@ func setupKeys(conn *xgb.Conn) {
 				switchTags(conn, tags)
 			},
 		},
+		{
+			Mod: mod,
+			Sym: keysym.XK_0,
+			Fn: func(conn *xgb.Conn) {
+				var tags BitMask = 511
+				switchTags(conn, tags)
+			},
+		},
 	}
 	grabKeys(conn)
 }
 
 func grabKeys(conn *xgb.Conn) {
-    root := xproto.Setup(conn).DefaultScreen(conn).Root
+	root := xproto.Setup(conn).DefaultScreen(conn).Root
 
-    for _, k := range keys {
-        keycode := keysymToKeycode(conn, k.Sym)
-        if keycode == 0 {
-            continue
-        }
+	for _, k := range keys {
+		keycode := keysymToKeycode(conn, k.Sym)
+		if keycode == 0 {
+			continue
+		}
 
-        ignoredMods := []uint16{
-            0,
-            xproto.ModMaskLock,
-            xproto.ModMask2,
-            xproto.ModMaskLock | xproto.ModMask2,
-        }
+		ignoredMods := []uint16{
+			0,
+			xproto.ModMaskLock,
+			xproto.ModMask2,
+			xproto.ModMaskLock | xproto.ModMask2,
+		}
 
-        for _, m := range ignoredMods {
-            xproto.GrabKey(conn,
-                true,
-                root,
-                k.Mod|m,
-                keycode,
-                xproto.GrabModeAsync,
-                xproto.GrabModeAsync,
-            )
-        }
-    }
+		for _, m := range ignoredMods {
+			xproto.GrabKey(conn,
+				true,
+				root,
+				k.Mod|m,
+				keycode,
+				xproto.GrabModeAsync,
+				xproto.GrabModeAsync,
+			)
+		}
+	}
 }
 
 func keysymToKeycode(conn *xgb.Conn, sym uint32) xproto.Keycode {
@@ -413,7 +419,7 @@ func manageWindow(conn *xgb.Conn, win xproto.Window) {
 		Width:    geom.Width,
 		Height:   geom.Height,
 		Floating: false,
-		Tags:  GlobalTags,
+		Tags:     GlobalTags,
 	}
 
 	clients[win] = client
@@ -429,17 +435,15 @@ func manageWindow(conn *xgb.Conn, win xproto.Window) {
 		})
 
 	// map (show) window
-	if ((client.Tags & GlobalTags) >= 1) {
+	if (client.Tags & GlobalTags) >= 1 {
 		xproto.MapWindow(conn, win)
 		focused = win
 		setInputFocus(conn, focused)
 	}
 	// xproto.MapWindow(conn, win)
 
-
-
 	// tile all windows
-	updateWindows(conn)	
+	updateWindows(conn)
 }
 
 func unmanageWindow(conn *xgb.Conn, win xproto.Window) {
@@ -461,146 +465,145 @@ func switchTags(conn *xgb.Conn, tags BitMask) {
 	updateWindows(conn)
 
 }
-
 func tileVertical(conn *xgb.Conn) {
-    log.Println("tile")
-    screen := xproto.Setup(conn).DefaultScreen(conn)
-    screenWidth := int(screen.WidthInPixels)
-    
-    usableHeight := int(screen.HeightInPixels) - int(barHeight)
+	log.Println("tile")
+	screen := xproto.Setup(conn).DefaultScreen(conn)
+	screenWidth := int(screen.WidthInPixels)
 
-    n := len(ActiveClients)
-    if n == 0 {
-        return
-    }
+	usableHeight := int(screen.HeightInPixels) - int(barHeight)
 
-    heightPerWin := usableHeight / n
+	n := len(ActiveClients)
+	if n == 0 {
+		return
+	}
 
-    i := 0
-    for _, c := range ActiveClients {
-        yOffset := int(barHeight) + (i * heightPerWin)
-				height := heightPerWin - gapSize
-				if (i == len(ActiveClients) - 1) {
-					height = heightPerWin - gapSize * 2
-				}
-        xproto.ConfigureWindow(conn, c.Win,
-            xproto.ConfigWindowX|
-                xproto.ConfigWindowY|
-                xproto.ConfigWindowWidth|
-                xproto.ConfigWindowHeight,
-            []uint32{
-                0 + uint32(gapSize), // x
-                uint32(yOffset + gapSize), // y
-                uint32(screenWidth - gapSize * 2),
-                uint32(height),
-            })
+	heightPerWin := usableHeight / n
 
-        i++
-    }
+	i := 0
+	for _, c := range ActiveClients {
+		yOffset := int(barHeight) + (i * heightPerWin)
+		height := heightPerWin - gapSize
+		if i == len(ActiveClients)-1 {
+			height = heightPerWin - gapSize*2
+		}
+		xproto.ConfigureWindow(conn, c.Win,
+			xproto.ConfigWindowX|
+				xproto.ConfigWindowY|
+				xproto.ConfigWindowWidth|
+				xproto.ConfigWindowHeight,
+			[]uint32{
+				0 + uint32(gapSize),       // x
+				uint32(yOffset + gapSize), // y
+				uint32(screenWidth - gapSize*2),
+				uint32(height),
+			})
+
+		i++
+	}
 }
 
 func tileHorizontal(conn *xgb.Conn) {
 	screen := xproto.Setup(conn).DefaultScreen(conn)
 	screenWidth := int(screen.WidthInPixels)
 	screenHeight := int(screen.HeightInPixels)
-	
-  n := len(ActiveClients)
-  if n == 0 {
-      return
-  }
-  widthPerWin := screenWidth / n
+
+	n := len(ActiveClients)
+	if n == 0 {
+		return
+	}
+	widthPerWin := screenWidth / n
 	i := 0
 	for _, c := range ActiveClients {
 		xOffset := int(i * widthPerWin)
 		width := widthPerWin - gapSize
 		log.Println(i, len(ActiveClients))
-		if (i == len(ActiveClients) - 1 ) {
-			width = widthPerWin - gapSize * 2
+		if i == len(ActiveClients)-1 {
+			width = widthPerWin - gapSize*2
 		}
-			xproto.ConfigureWindow(conn, c.Win,
-      	xproto.ConfigWindowX|
-        	xproto.ConfigWindowY|
-          xproto.ConfigWindowWidth|
-          xproto.ConfigWindowHeight,
-          []uint32{
-          	uint32(xOffset + gapSize), // x
-           	uint32(int(barHeight) + gapSize), // y
-            uint32(width),
-            uint32(screenHeight - int(barHeight) - gapSize * 2),
-          })
-    i++
+		xproto.ConfigureWindow(conn, c.Win,
+			xproto.ConfigWindowX|
+				xproto.ConfigWindowY|
+				xproto.ConfigWindowWidth|
+				xproto.ConfigWindowHeight,
+			[]uint32{
+				uint32(xOffset + gapSize),        // x
+				uint32(int(barHeight) + gapSize), // y
+				uint32(width),
+				uint32(screenHeight - int(barHeight) - gapSize*2),
+			})
+		i++
 	}
 }
 
 func tileWithMaster(conn *xgb.Conn) {
 	screen := xproto.Setup(conn).DefaultScreen(conn)
 	screenWidth := int(screen.WidthInPixels)
-	screenHeight := int(screen.HeightInPixels)	
+	screenHeight := int(screen.HeightInPixels)
 	usableHeight := int(screen.HeightInPixels) - int(barHeight)
-
 
 	var fullscreenMaster int = 0
 
 	n := len(ActiveClients)
 	if n == 0 {
-		return 
+		return
 	} else if n == 1 {
 		fullscreenMaster = 1
 	}
-	
+
 	widthPerWin := screenWidth / 2
 	masterClient := ActiveClients[0]
 	i := 0
 	for _, c := range ActiveClients {
-		if (c == masterClient) {
-			if (fullscreenMaster == 1) {
+		if c == masterClient {
+			if fullscreenMaster == 1 {
 				xproto.ConfigureWindow(conn, c.Win,
 					xproto.ConfigWindowX|
-					xproto.ConfigWindowY|
-					xproto.ConfigWindowWidth|
-					xproto.ConfigWindowHeight,
+						xproto.ConfigWindowY|
+						xproto.ConfigWindowWidth|
+						xproto.ConfigWindowHeight,
 					[]uint32{
-						uint32(0 + gapSize), // x
-						uint32(int(barHeight) + gapSize), // y
-						uint32(screenWidth - gapSize), // width
-						uint32(screenHeight - int(barHeight) - gapSize),
-				})} else {
+						uint32(0),              // x
+						uint32(int(barHeight)), // y
+						uint32(screenWidth),    // width
+						uint32(screenHeight - int(barHeight)),
+					})
+			} else {
 				xproto.ConfigureWindow(conn, c.Win,
 					xproto.ConfigWindowX|
-					xproto.ConfigWindowY|
-					xproto.ConfigWindowWidth|
-					xproto.ConfigWindowHeight,
-				[]uint32{
-					uint32(0 + gapSize), // x
-					uint32(int(barHeight) + gapSize), // y
-					uint32(screenWidth/2 - int(gapSize)), // width
-					uint32(screenHeight - int(barHeight) - gapSize * 2),
-				})
-			} 
+						xproto.ConfigWindowY|
+						xproto.ConfigWindowWidth|
+						xproto.ConfigWindowHeight,
+					[]uint32{
+						uint32(0 + gapSize),                  // x
+						uint32(int(barHeight) + gapSize),     // y
+						uint32(screenWidth/2 - int(gapSize)), // width
+						uint32(screenHeight - int(barHeight) - gapSize*2),
+					})
+			}
 		} else {
 			heightPerWin := usableHeight / (n - 1)
 			yOffset := int(barHeight) + (i * heightPerWin) + gapSize
 			xOffset := uint32(widthPerWin + gapSize)
-			height := heightPerWin - gapSize * 2
+			height := heightPerWin - gapSize*2
 			log.Println(len(ActiveClients), i)
 			if n > 2 {
 				height = heightPerWin - gapSize
-			} 
-			if (i >= len(ActiveClients) - 2) {
-				height = heightPerWin - gapSize * 2
-			} 
+			}
+			if i >= len(ActiveClients)-2 {
+				height = heightPerWin - gapSize*2
+			}
 			xproto.ConfigureWindow(conn, c.Win,
-            xproto.ConfigWindowX|
-                xproto.ConfigWindowY|
-                xproto.ConfigWindowWidth|
-                xproto.ConfigWindowHeight,
-            []uint32{
-                xOffset, // x
-                uint32(yOffset), // y
-                uint32(widthPerWin - gapSize * 2),
-                uint32(height),
-            })
-        i++
+				xproto.ConfigWindowX|
+					xproto.ConfigWindowY|
+					xproto.ConfigWindowWidth|
+					xproto.ConfigWindowHeight,
+				[]uint32{
+					xOffset,         // x
+					uint32(yOffset), // y
+					uint32(widthPerWin - gapSize*2),
+					uint32(height),
+				})
+			i++
 
 		}
 	}
@@ -613,7 +616,7 @@ func createBar(conn *xgb.Conn) {
 	// create the window
 	cw := []uint32{
 		xproto.EventMaskExposure, // redraw on expose
-		uint32(0xFFFFFF), // white background
+		uint32(0xFFFFFF),         // white background
 	}
 
 	barWindow, _ = xproto.NewWindowId(conn)
@@ -659,15 +662,15 @@ func drawBarText(conn *xgb.Conn, text string) {
 		ascii = []byte(" ")
 	}
 
-	textItem := make([]byte, len(ascii)+2)	
-    textItem[0] = byte(len(ascii)) // string len
-    textItem[1] = 0 // offset
-    copy(textItem[2:], ascii)
+	textItem := make([]byte, len(ascii)+2)
+	textItem[0] = byte(len(ascii)) // string len
+	textItem[1] = 0                // offset
+	copy(textItem[2:], ascii)
 
-    err := xproto.PolyText8Checked(conn, xproto.Drawable(barWindow), barGC, int16(screenWidth / 2 - len(ascii)*2), int16(barHeight-5), textItem).Check()
-    if err != nil {
-        log.Println("polytext failed again :D err:", err)
-    }
+	err := xproto.PolyText8Checked(conn, xproto.Drawable(barWindow), barGC, int16(screenWidth/2-len(ascii)*2), int16(barHeight-5), textItem).Check()
+	if err != nil {
+		log.Println("polytext failed again :D err:", err)
+	}
 }
 
 func getWindowTitle(conn *xgb.Conn, win xproto.Window) string {
@@ -676,7 +679,7 @@ func getWindowTitle(conn *xgb.Conn, win xproto.Window) string {
 	}
 
 	prop, err := xproto.GetProperty(conn, false, focused, xproto.AtomWmName, xproto.AtomString, 0, 100).Reply()
-	
+
 	if err != nil {
 		log.Println("failed to get window title:", err)
 		return "Unknown"
@@ -692,24 +695,23 @@ func getWindowTitle(conn *xgb.Conn, win xproto.Window) string {
 func updateWindows(conn *xgb.Conn) {
 	ActiveClients = ActiveClients[:0]
 	log.Println(ActiveClients)
-	for _, client := range clients {	
+	for _, client := range clients {
 		log.Println(client.Tags & GlobalTags)
-		if ((client.Tags & GlobalTags) >= 1) {
+		if (client.Tags & GlobalTags) >= 1 {
 			xproto.MapWindow(conn, client.Win)
 			ActiveClients = append(ActiveClients, client)
 			log.Println("Mapping window", client.Win)
 		}
 	}
 
-
 	switch layout {
-		case "tileHorizontal":
-			tileHorizontal(conn)
-		case "tileVertical":
-			tileVertical(conn)
-		case "tileWithMaster":
-			tileWithMaster(conn)
-		default:
-			log.Fatal("Unknown layout ", layout)
+	case "tileHorizontal":
+		tileHorizontal(conn)
+	case "tileVertical":
+		tileVertical(conn)
+	case "tileWithMaster":
+		tileWithMaster(conn)
+	default:
+		log.Fatal("Unknown layout ", layout)
 	}
 }
