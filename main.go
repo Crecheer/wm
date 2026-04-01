@@ -9,7 +9,7 @@ import (
 	"github.com/BurntSushi/xgb"
 	"github.com/BurntSushi/xgb/xproto"
 
-	config "github.com/crecheer/wm/config"
+	"github.com/crecheer/wm/config"
 	"github.com/crecheer/wm/keysym"
 )
 
@@ -114,6 +114,11 @@ func setup(conn *xgb.Conn) {
 	setupKeys(conn)
 	if barHeight != 0 {
 		createBar(conn)
+	}
+
+	for _, cmd := range config.Startup {
+		exec.Command(cmd)
+		log.Println(cmd)
 	}
 }
 
