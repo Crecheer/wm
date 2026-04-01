@@ -39,7 +39,7 @@ var focused xproto.Window
 // bar
 var barWindow xproto.Window
 var barGC xproto.Gcontext
-var barHeight uint16 = 200 // bar height in pixels
+var barHeight uint16 = 20 // bar height in pixels, to disable bar set to 0
 
 // layout
 var layout string = "tileWithMaster"
@@ -76,17 +76,19 @@ func main() {
 			focused = e.Event
 			setInputFocus(conn, focused)
 			// update bar
-			title := getWindowTitle(conn, focused)
-			log.Println(title)
-			drawBarText(conn, fmt.Sprintf("[%s]", title))
+			if barHeight != 0 {
+				title := getWindowTitle(conn, focused)
+				drawBarText(conn, fmt.Sprintf("[%s]", title))
+			}
 		case xproto.ExposeEvent:
 			if e.Window == barWindow {
 				title := getWindowTitle(conn, focused)
 				if title == "None" {
 					title = "wm"
 				}
-				drawBarText(conn, fmt.Sprintf("[%s]", title))
-
+				if barHeight != 0 {
+					drawBarText(conn, fmt.Sprintf("[%s]", title))
+				}
 			}
 		default:
 			log.Println("event: ", e)
@@ -96,7 +98,6 @@ func main() {
 }
 
 func setup(conn *xgb.Conn) {
-	log.Println("setup")
 	root := xproto.Setup(conn).DefaultScreen(conn).Root
 
 	err := xproto.ChangeWindowAttributesChecked(
@@ -114,7 +115,9 @@ func setup(conn *xgb.Conn) {
 	}
 
 	setupKeys(conn)
-	createBar(conn)
+	if barHeight != 0 {
+		createBar(conn)
+	}
 }
 
 func spawn(cmd string, args ...string) {
@@ -380,8 +383,6 @@ func handleKeyPress(conn *xgb.Conn, e xproto.KeyPressEvent) {
 		return
 	}
 
-	log.Println(reply)
-
 	sym := reply.Keysyms[0]
 
 	for _, k := range keys {
@@ -466,7 +467,6 @@ func switchTags(conn *xgb.Conn, tags BitMask) {
 
 }
 func tileVertical(conn *xgb.Conn) {
-	log.Println("tile")
 	screen := xproto.Setup(conn).DefaultScreen(conn)
 	screenWidth := int(screen.WidthInPixels)
 
@@ -694,7 +694,6 @@ func getWindowTitle(conn *xgb.Conn, win xproto.Window) string {
 
 func updateWindows(conn *xgb.Conn) {
 	ActiveClients = ActiveClients[:0]
-	log.Println(ActiveClients)
 	for _, client := range clients {
 		log.Println(client.Tags & GlobalTags)
 		if (client.Tags & GlobalTags) >= 1 {
