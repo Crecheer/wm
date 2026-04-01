@@ -9,6 +9,7 @@ import (
 	"github.com/BurntSushi/xgb"
 	"github.com/BurntSushi/xgb/xproto"
 
+	config "github.com/crecheer/wm/config"
 	"github.com/crecheer/wm/keysym"
 )
 
@@ -39,11 +40,11 @@ var focused xproto.Window
 // bar
 var barWindow xproto.Window
 var barGC xproto.Gcontext
-var barHeight uint16 = 20 // bar height in pixels, to disable bar set to 0
+var barHeight uint16 = config.BarHeight
 
 // layout
 var layout string = "tileWithMaster"
-var gapSize = 10 // 0 = no border
+var gapSize = config.GapSize
 
 // tags
 var GlobalTags BitMask = 1
@@ -54,9 +55,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-
 	setup(conn)
-
 	for {
 		ev, err := conn.WaitForEvent()
 		if err != nil {
@@ -99,7 +98,6 @@ func main() {
 
 func setup(conn *xgb.Conn) {
 	root := xproto.Setup(conn).DefaultScreen(conn).Root
-
 	err := xproto.ChangeWindowAttributesChecked(
 		conn,
 		root,
@@ -109,7 +107,6 @@ func setup(conn *xgb.Conn) {
 				xproto.EventMaskSubstructureNotify,
 		},
 	).Check()
-
 	if err != nil {
 		log.Fatal(err)
 	}
